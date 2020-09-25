@@ -1,0 +1,6 @@
+# byte-compiled, DLLs
+*.py[cod]
+__pycache__/
+
+#virtual env stuff
+venv/
