@@ -3,4 +3,4 @@
 __pycache__/
 
 #virtual env stuff
-venv/
+hb_venv/
