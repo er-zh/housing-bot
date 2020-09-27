@@ -2,6 +2,7 @@
     "location":"chickawawa",
     "distance":
     {
+        "wrt":"idk",
         "radial":0, 
         "walking":0
     }, 

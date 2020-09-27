@@ -17,6 +17,7 @@ if __name__ == "__main__":
     "location":"chickawawa",
     "distance":
     {
+        "wrt":"idk",
         "radial":0, 
         "walking":0
     }, 
