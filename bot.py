@@ -17,5 +17,7 @@ if __name__ == "__main__":
     for key in params['queries']:
         searches.append(params['queries'][key].replace('<location>', params['location']))
 
-    
+    for site in params['websites']:
+        for search in params['queries']:
+            
     
