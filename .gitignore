@@ -3,4 +3,7 @@
 __pycache__/
 
 #virtual env stuff
-hb_venv/
+*venv/
+
+#vscode settings
+.vscode/
