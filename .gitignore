@@ -7,3 +7,6 @@ __pycache__/
 
 #vscode settings
 .vscode/
+
+#ignore generated json files
+*.json

@@ -11,3 +11,31 @@ if __name__ == "__main__":
                     print(json_data[search_param][subparam])
             else:
                 print(json_data[search_param])
+
+'''
+{
+    "location":"chickawawa",
+    "distance":
+    {
+        "radial":0, 
+        "walking":0
+    }, 
+    "price":
+    {
+        "raw": 0,
+        "per_roommate":0
+    },
+    "websites":
+    {
+        "craigslist":false,
+        "fb":false,
+        "zillow":false
+    },
+    "queries":
+    {
+        "1":"rental properties in <location>",
+        "2":"apartments <location>",
+        "3":"<location> rental properties"
+    }
+}
+'''
