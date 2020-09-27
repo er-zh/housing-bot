@@ -22,5 +22,10 @@
         "1":"rental properties in <location>",
         "2":"apartments <location>",
         "3":"<location> rental properties"
+    },
+    "sizing":
+    {
+        "beds":2,
+        "baths":2
     }
 }
