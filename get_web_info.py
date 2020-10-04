@@ -9,6 +9,7 @@ if __name__ == "__main__":
     # only searches through one site atm
     url = "https://raleigh.craigslist.org/search/hhh?query=<qqq>&availabilityMode=0&sale_date=all+dates"
     swap = "<qqq>"
+    space = "+"
 
     # get the search queries that you want to use
     queries = {}
@@ -19,6 +20,7 @@ if __name__ == "__main__":
         queries = list(params['queries'].values())
         for i in range(len(queries)):
             queries[i] = queries[i].replace('<location>', params['location'])
+            queries[i] = queries[i].replace(' ', space)
 
     print(queries)
 
@@ -29,16 +31,36 @@ if __name__ == "__main__":
         res = requests.get(search)
         try:
             res.raise_for_status()
-        except Exception as ex:
-            print(f'Issue: {ex}')
+        except requests.exceptions.HTTPError as err:
+            # TODO: implement actual exception handling
+            print(f'Issue: {err}')
         
         # use bs4 to parse the retrieved html
         soup = bs4.BeautifulSoup(res.text, 'html.parser')
 
         # for craigslist look through section class=page-container ->
-        # form id=searchform -> div class=content -> ul class=rows ->
-        # li class=result-row -> a href=*the url we want*
-        print(type(soup))
-        search_results = soup.select('body > section > form > div > ul > li > a')
+        # form id=searchform -> div class=content -> ul class=rows -> li class=result-row
+        search_results = soup.select('body > section > form > div > ul > li')
 
-        print(type(search_results), len(search_results), str(search_results[0]))
+        # inside of the li tag is:
+        # an a tag href=*the url we want*
+        # data-pid values, will let us easily check for duplicates
+        # data-pid method might only be valid for craigslist
+
+        # avoid parsing duplicate listings by tracking listings already parsed
+        checked_results = set() # only need to test for membership
+
+        # want to iterate through the search results and get the urls for each listing
+        for res in search_results:
+            if res.get('data-pid') in checked_results:
+                continue
+
+            listing = requests.get(res.a.get('href'))
+            try:
+                listing.raise_for_status()
+            except requests.exceptions.HTTPError as err:
+                #TODO: more exception handling
+                print(f'Issue: {err}')
+            
+            
+            checked_results.add(res.get('data-pid'))

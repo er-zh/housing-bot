@@ -1,7 +1,10 @@
 import requests
 import bs4
 import json
-#import seleniums
+#import selenium
+
+# this bot should also check to see if previously
+# saved for listings have been removed
 
 if __name__ == "__main__":
     param_file_loc = "./defaults.json"
