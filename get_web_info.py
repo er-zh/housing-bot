@@ -1,6 +1,7 @@
 import requests
 import bs4
 #import selenium
+import re
 
 #temp
 import json
@@ -10,6 +11,10 @@ if __name__ == "__main__":
     url = "https://raleigh.craigslist.org/search/hhh?query=<qqq>&availabilityMode=0&sale_date=all+dates"
     swap = "<qqq>"
     space = "+"
+
+    #regexes
+    # gets housing size data, group 1 = num bedrooms, group 2 = square footage
+    craigslist_housing_regex = r'^.*(\d+br).*?(\d+ft2).*$'
 
     # get the search queries that you want to use
     queries = {}
@@ -21,8 +26,6 @@ if __name__ == "__main__":
         for i in range(len(queries)):
             queries[i] = queries[i].replace('<location>', params['location'])
             queries[i] = queries[i].replace(' ', space)
-
-    print(queries)
 
     for query in queries:
         # retrieve the webpage
@@ -54,13 +57,30 @@ if __name__ == "__main__":
         for res in search_results:
             if res.get('data-pid') in checked_results:
                 continue
-
-            listing = requests.get(res.a.get('href'))
+            
+            lurl = res.a.get('href')
+            listing = requests.get(lurl)
             try:
                 listing.raise_for_status()
             except requests.exceptions.HTTPError as err:
                 #TODO: more exception handling
                 print(f'Issue: {err}')
             
+            lsoup = bs4.BeautifulSoup(listing.text, 'html.parser')
+
+            # get the contents of h1 with class=postingtitle
+            title = lsoup.select('h1.postingtitle')[0]
+            # get the contents of section with id=postingbody
+            body = lsoup.select('section#postingbody')[0]
             
+            # retrieve property information
+            price = title.find('span', attrs={'class':'price'}).get_text()
+            price = price[1:] if price[0] == '$' else price
+
+            housing = title.find('span', attrs={'class':'housing'}).get_text()
+            size_stats = re.search(craigslist_housing_regex, housing)
+            bedrooms = size_stats.group(1)
+            sq_ft = size_stats.group(2)
+            quit(0)
+
             checked_results.add(res.get('data-pid'))
