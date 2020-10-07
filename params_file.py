@@ -7,34 +7,39 @@ import os
 
 class Search():
     def __init__(self, param_file='./param_template.json'):
-        # the location being searched
-        self.location = ''
-        self.dist_wrt = ''
-        self.graph_dist = 0
-        self.walking = 0
-        self.raw_price = 0
-        self.roommate_price = 0
-        self.websites = {}
-        self.queries = []
-        self.beds = 0
-        self.baths = 0.0
-    
         search_params = {}
         with open(param_file) as pf:
             json_string = pf.read()
             search_params = json.loads(json_string)
 
+        # the location being searched
         self.location = search_params['location']
-        self.dist_wrt = search_params['distance']['wrt']
+
+        # location that distances are measured with respect to
+        self.loc_wrt = search_params['distance']['wrt']
+
+        # the direct distance between the potential housing and 
         self.graph_dist = search_params['distance']['gr_dist']
+
+        # walking distance measured in minutes
         self.walking = search_params['distance']['walking']
+
+        # the actual cost of renting per month
         self.raw_price = search_params['pricing'][0]
+
+        # the cost per roommate
         self.roommate_price = search_params['pricing'][1]
+        self.n_roommates = search_params['pricing'][2]
+
+        # websites to scrape and their respective search urls
         self.websites = search_params['websites']
 
+        # the search strings used on each site
+        self.queries = []
         for query in search_params['queries']:
             self.queries.append(query.replace('<location>', self.location))
         
+        # size of the property by beds and baths
         self.beds = search_params['sizing'][0]
         self.baths = search_params['sizing'][1]
     
@@ -42,10 +47,10 @@ class Search():
         json_data = {}
         json_data['location'] = self.location
         json_data['distance'] = {}
-        json_data['distance']['wrt'] = self.dist_wrt
+        json_data['distance']['wrt'] = self.loc_wrt
         json_data['distance']['gr_dist'] = self.graph_dist
         json_data['distance']['walking'] = self.walking
-        json_data['pricing'] = [self.raw_price, self.roommate_price]
+        json_data['pricing'] = [self.raw_price, self.roommate_price, self.n_roommates]
         json_data['websites'] = self.websites
         json_data['queries'] = self.queries
         json_data['sizing'] = [self.beds, self.baths]
@@ -69,27 +74,18 @@ if __name__ == "__main__":
         "gr_dist":0, 
         "walking":0
     }, 
-    "pricing":
-    {
-        "raw": 0,
-        "per_roommate":0
-    },
+    "pricing":[1000, 500, 2],
     "websites":
     {
         "craigslist":false,
         "fb":false,
         "zillow":false
     },
-    "queries":
-    {
-        "1":"rental properties in <location>",
-        "2":"apartments <location>",
-        "3":"<location> rental properties"
-    },
-    "sizing":
-    {
-        "beds":2,
-        "baths":2
-    }
+    "queries":[
+        "rental properties in <location>", 
+        "apartments <location>", 
+        "<location> rental properties"
+    ],    
+    "sizing":[1, 1]
 }
 '''

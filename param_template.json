@@ -6,14 +6,15 @@
         "gr_dist":0, 
         "walking":0
     }, 
-    "pricing":[0, 0],
+    "pricing":[1000, 500, 2],
     "websites":
     {
         "craigslist":false,
         "fb":false,
         "zillow":false
     },
-    "queries":[
+    "queries":
+    [
         "rental properties in <location>", 
         "apartments <location>", 
         "<location> rental properties"

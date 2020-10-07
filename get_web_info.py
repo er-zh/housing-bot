@@ -10,22 +10,22 @@ if __name__ == "__main__":
     # only searches through one site atm
     url = "https://raleigh.craigslist.org/search/hhh?query=<qqq>&availabilityMode=0&sale_date=all+dates"
     swap = "<qqq>"
-    space = "+"
+    delim = "+"
 
     #regexes
     # gets housing size data, group 1 = num bedrooms, group 2 = square footage
-    craigslist_housing_regex = r'^.*(\d+br).*?(\d+ft2).*$'
+    craigslist_title_housing_regex = r'^.*(\d+br).*?(\d+ft2).*$'
 
     # get the search queries that you want to use
-    queries = {}
+    queries = []
     with open('./defaults.json') as param_file:
         json_string_data = param_file.read()
         params = json.loads(json_string_data)
 
-        queries = list(params['queries'].values())
-        for i in range(len(queries)):
-            queries[i] = queries[i].replace('<location>', params['location'])
-            queries[i] = queries[i].replace(' ', space)
+        queries = params['queries']
+    for i in range(len(queries)):
+        queries[i] = queries[i].replace('<location>', params['location'])
+        queries[i] = queries[i].replace(' ', delim)
 
     for query in queries:
         # retrieve the webpage
@@ -78,9 +78,10 @@ if __name__ == "__main__":
             price = price[1:] if price[0] == '$' else price
 
             housing = title.find('span', attrs={'class':'housing'}).get_text()
-            size_stats = re.search(craigslist_housing_regex, housing)
+            size_stats = re.search(craigslist_title_housing_regex, housing)
             bedrooms = size_stats.group(1)
             sq_ft = size_stats.group(2)
+            print(price, bedrooms, sq_ft)
             quit(0)
 
             checked_results.add(res.get('data-pid'))
