@@ -2,30 +2,21 @@
     "location":"chickawawa",
     "distance":
     {
-        "wrt":"idk",
-        "radial":0, 
+        "wrt":"some address",
+        "gr_dist":0, 
         "walking":0
     }, 
-    "price":
-    {
-        "raw": 0,
-        "per_roommate":0
-    },
+    "pricing":[0, 0],
     "websites":
     {
         "craigslist":false,
         "fb":false,
         "zillow":false
     },
-    "queries":
-    {
-        "1":"rental properties in <location>",
-        "2":"apartments <location>",
-        "3":"<location> rental properties"
-    },
-    "sizing":
-    {
-        "beds":2,
-        "baths":2
-    }
+    "queries":[
+        "rental properties in <location>", 
+        "apartments <location>", 
+        "<location> rental properties"
+    ],    
+    "sizing":[1, 1]
 }
