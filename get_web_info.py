@@ -2,26 +2,31 @@ import requests
 import bs4
 #import selenium
 import re
-import multiprocessing
-import time
-
+# need this to time out regexes that take forever
+# means that this is incompatible with non-UNIX envs
+import signal
 #temp
 import json
 
-
-def get_address(text, queue):
-    # too expensive to do a findall
-    # will occassionally fail anyways
-    addr = street_addr_pattern.search(text)
-    if addr is not None:
-        queue.put(addr.group(0))
-
+def handler(signum, frame):
+    print("regex taking too long")
+    raise RuntimeError("killing regex, and skipping to next listing")
 
 if __name__ == "__main__":
     # only searches through one site atm
     url = "https://raleigh.craigslist.org/search/hhh?query=<qqq>&availabilityMode=0&sale_date=all+dates"
     swap = "<qqq>"
     delim = "+"
+
+    #regexes
+    suffixes = r'(St(reet)?|R(oa)?d|Dr(ive)?|Ave(nue)?|Way|Pl(ace)?|C(our)?t|Cir(cle)?)'
+    street_addr_pattern = re.compile(r'((\d+-)?(\d+) (\w+\s?){1,3} ' + suffixes + r')') # street address
+    price_pattern = re.compile(r'(\$(\d{1,3}?),?(\d{1,3},?)*)') # cost of rent
+    bed_pattern = re.compile(r'(\d)\s?(Bed(room)?(s)?|br|BR|Br)') # num beds
+    bath_pattern = re.compile(r'(\d)\s?((Full )?Bath(room)?(s)?|ba|Ba|BA)') # num baths
+
+    # timeout function to stop slow regexes
+    signal.signal(signal.SIGALRM, handler)
 
     # get the search queries that you want to use
     queries = []
@@ -33,13 +38,6 @@ if __name__ == "__main__":
     for i in range(len(queries)):
         queries[i] = queries[i].replace('<location>', params['location'])
         queries[i] = queries[i].replace(' ', delim)
-    
-    #regexes
-    suffixes = r'(St(reet)?|R(oa)?d|Dr(ive)?|Ave(nue)?|Way|Pl(ace)?|C(our)?t|Cir(cle)?)\.?'
-    street_addr_pattern = re.compile(r'((\d+-)?(\d+) (\w+\s?)+ ' + suffixes + r')') # street address
-    price_pattern = re.compile(r'(\$(\d{1,3}?),?(\d{1,3},?)*)') # cost of rent
-    bed_pattern = re.compile(r'(\d)\s?(Bed(room)?(s)?|br|BR|Br)') # num beds
-    bath_pattern = re.compile(r'(\d)\s?((Full )?Bath(room)?(s)?|ba|Ba|BA)') # num baths
 
     for query in queries:
         print(query)
@@ -110,27 +108,19 @@ if __name__ == "__main__":
                 if match_val > price:
                     price = match_val
 
-            # get the address via super ratchet method
+            signal.alarm(10)
             # sometimes a listing just doesn't contain an address that is 
             # findable by the street_addr regex, so defn a function that 
             # is responsible for looking for the address and if the search takes
             # too long time it out
             try:
-                q = multiprocessing.Queue()
+                addr = street_addr_pattern.search(page_text)
+            except RuntimeError as ex:
+                addr = None
+            signal.alarm(0)
 
-                p = multiprocessing.Process(target=get_address, args=(page_text, q))
-                p.start()
-
-                p.join(5)
-
-                if p.is_alive():
-                    p.kill()
-                    p.join()
-                else:
-                    address = q.get()
-            except multiprocessing.ProcessError as bigoof:
-                print(f'{bigoof}')
-                quit()
+            if addr is not None:
+                address = addr.group(0)
             print(address)
 
             matches = bed_pattern.findall(page_text)
@@ -143,4 +133,3 @@ if __name__ == "__main__":
 
             checked_results.add(res.get('data-pid'))
 
-            
