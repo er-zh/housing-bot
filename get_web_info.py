@@ -8,7 +8,8 @@ import signal
 #temp
 import json
 
-def handler(signum, frame):
+# conventionally takes (signum, frame) as args
+def handler():
     print("regex taking too long")
     raise RuntimeError("killing regex, and skipping to next listing")
 
