@@ -12,25 +12,6 @@ if __name__ == "__main__":
     swap = "<qqq>"
     delim = "+"
 
-    #regexes
-    regexes = []
-    # craigslist title regex
-    # gets housing size data, group1 = rent price, group2 = num bedrooms, group3 = square footage
-    regexes.append(r'\$(\d{1,3}(,?))+ / (\d+)br - (\d+)ft2')
-    # general params checking
-    #regexes.append(r'(\d+ (\w+\s?)+)') # street address
-    #regexes.append(r'((\w+\s?)+),? (\w\w) (\d{5})') # city state and zip code
-    regexes.append(r'(\$(\d{1,3}?(,?))+)') # cost of rent
-    #regexes.append(r'(\d) Bed(room)?(s)?') # num beds
-    #regexes.append(r'(\d) ((Full )?Bath(room)?(s)?)') # num baths
-    
-    # compile parsers
-    patterns = []
-    for regex in regexes:
-        patterns.append(re.compile(regex))
-
-    n_regexes = len(patterns)
-
     # get the search queries that you want to use
     queries = []
     with open('./defaults.json') as param_file:
@@ -41,6 +22,17 @@ if __name__ == "__main__":
     for i in range(len(queries)):
         queries[i] = queries[i].replace('<location>', params['location'])
         queries[i] = queries[i].replace(' ', delim)
+
+    #regexes
+    suffixes = r'(St(reet)?|R(oa)?d|Dr(ive)?|Hwy|Ave(nue)?|Blvd|Way|Pl(ace)?|C(our)?t|Cir(cle)?)\.?'
+    street_addr_pattern = re.compile(r'((\d+) (\w+\s?)+ ' + suffixes + r')') # street address
+    
+    #city_pattern = re.compile(params['location'] + r',? (\w\w) (\d{5})') # city state and zip code
+
+    price_pattern = re.compile(r'(\$(\d{1,3}?),?(\d{1,3},?)*)') # cost of rent
+
+    bed_pattern = re.compile(r'(\d)\s?(Bed(room)?(s)?|br|BR|Br)') # num beds
+    bath_pattern = re.compile(r'(\d)\s?((Full )?Bath(room)?(s)?|ba|Ba|BA)') # num baths
 
     for query in queries:
         print(query)
@@ -85,7 +77,6 @@ if __name__ == "__main__":
             lsoup = bs4.BeautifulSoup(listing.text, 'html.parser')
 
             # stats that are being searched for
-            address = ''
             price = -1
             bedrooms = -1
             bathrooms = -1
@@ -96,40 +87,34 @@ if __name__ == "__main__":
             page_body = lsoup.select('section.body')[0]
 
             page_text = " ".join(page_body.text.split())
+            print(page_text)
 
-            for pattern in patterns:
-                match = pattern.findall(page_text)
-
-                if match is None:
-                    print('oh no')
-                    continue
-                
-                for res in match:
-                    print(res)
+            matches = street_addr_pattern.findall(page_text)
+            address = matches[0][0]
+            print(address)
             
-            '''
-            # retrieve property information contained within the title
-            price = title.find('span', attrs={'class':'price'})
-            if price is not None:
-                #price = price.get_text()
-                price = price.text[1:] if price.text[0] == '$' else price
-
-            housing = title.find('span', attrs={'class':'housing'})
-            if housing is not None:
-                #housing = housing.get_text()
-                size_stats = patterns[0].search(housing.text) # should do re.compile then match
-                if size_stats is None:
-                    print(housing)
-                else:
-                    bedrooms = size_stats.group(1)
-                    sq_ft = size_stats.group(2) #don't really need this stat
-            print(price, bedrooms, sq_ft)
-
-            brs = body.find_all('br')
-            for br in brs:
-                for i in range(1, n_regexes):
-                    br.get_text()
-                    '''
+            # method for getting the numeric price value is super ratchet
+            matches = price_pattern.findall(page_text)
+            print(matches)
+            for match in matches:
+                match_val = ''
+                for i in range(1, len(match)):
+                    match_val = match_val + match[i]
+                match_val = float(match_val)
+                if match_val > price:
+                    price = match_val
+            print(price)
+            
+            matches = bed_pattern.findall(page_text)
+            bedrooms = int(matches[0][0])
+            print(bedrooms)
+            
+            matches = bath_pattern.findall(page_text)
+            bathrooms = int(matches[0][0])
+            print(bathrooms)
+            
             quit(0)
 
             checked_results.add(res.get('data-pid'))
+
+            
