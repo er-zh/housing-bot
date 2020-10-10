@@ -2,9 +2,20 @@ import requests
 import bs4
 #import selenium
 import re
+import multiprocessing
+import time
 
 #temp
 import json
+
+
+def get_address(text, queue):
+    # too expensive to do a findall
+    # will occassionally fail anyways
+    addr = street_addr_pattern.search(text)
+    if addr is not None:
+        queue.put(addr.group(0))
+
 
 if __name__ == "__main__":
     # only searches through one site atm
@@ -22,15 +33,11 @@ if __name__ == "__main__":
     for i in range(len(queries)):
         queries[i] = queries[i].replace('<location>', params['location'])
         queries[i] = queries[i].replace(' ', delim)
-
-    #regexes
-    suffixes = r'(St(reet)?|R(oa)?d|Dr(ive)?|Hwy|Ave(nue)?|Blvd|Way|Pl(ace)?|C(our)?t|Cir(cle)?)\.?'
-    street_addr_pattern = re.compile(r'((\d+) (\w+\s?)+ ' + suffixes + r')') # street address
     
-    #city_pattern = re.compile(params['location'] + r',? (\w\w) (\d{5})') # city state and zip code
-
+    #regexes
+    suffixes = r'(St(reet)?|R(oa)?d|Dr(ive)?|Ave(nue)?|Way|Pl(ace)?|C(our)?t|Cir(cle)?)\.?'
+    street_addr_pattern = re.compile(r'((\d+-)?(\d+) (\w+\s?)+ ' + suffixes + r')') # street address
     price_pattern = re.compile(r'(\$(\d{1,3}?),?(\d{1,3},?)*)') # cost of rent
-
     bed_pattern = re.compile(r'(\d)\s?(Bed(room)?(s)?|br|BR|Br)') # num beds
     bath_pattern = re.compile(r'(\d)\s?((Full )?Bath(room)?(s)?|ba|Ba|BA)') # num baths
 
@@ -43,8 +50,9 @@ if __name__ == "__main__":
         try:
             res.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            # TODO: implement actual exception handling
-            print(f'Issue: {err}')
+            print(f'Err: failed to request {lurl}')
+            print(err)
+            continue
         
         # use bs4 to parse the retrieved html
         soup = bs4.BeautifulSoup(res.text, 'html.parser')
@@ -62,7 +70,8 @@ if __name__ == "__main__":
         checked_results = set() # only need to test for membership
 
         # want to iterate through the search results and get the urls for each listing
-        for res in search_results:
+        for k, res in enumerate(search_results):
+            print(k)
             if res.get('data-pid') in checked_results:
                 continue
             
@@ -71,12 +80,15 @@ if __name__ == "__main__":
             try:
                 listing.raise_for_status()
             except requests.exceptions.HTTPError as err:
-                #TODO: more exception handling
-                print(f'Issue: {err}')
+                print(f'Err: failed to request {lurl}')
+                print(err)
+                continue
             
             lsoup = bs4.BeautifulSoup(listing.text, 'html.parser')
 
             # stats that are being searched for
+            # will be unchanged if the regex searches return none
+            address = ''
             price = -1
             bedrooms = -1
             bathrooms = -1
@@ -87,15 +99,9 @@ if __name__ == "__main__":
             page_body = lsoup.select('section.body')[0]
 
             page_text = " ".join(page_body.text.split())
-            print(page_text)
 
-            matches = street_addr_pattern.findall(page_text)
-            address = matches[0][0]
-            print(address)
-            
-            # method for getting the numeric price value is super ratchet
+            # method for getting the numeric price value is ratchet
             matches = price_pattern.findall(page_text)
-            print(matches)
             for match in matches:
                 match_val = ''
                 for i in range(1, len(match)):
@@ -103,17 +109,37 @@ if __name__ == "__main__":
                 match_val = float(match_val)
                 if match_val > price:
                     price = match_val
-            print(price)
-            
+
+            # get the address via super ratchet method
+            # sometimes a listing just doesn't contain an address that is 
+            # findable by the street_addr regex, so defn a function that 
+            # is responsible for looking for the address and if the search takes
+            # too long time it out
+            try:
+                q = multiprocessing.Queue()
+
+                p = multiprocessing.Process(target=get_address, args=(page_text, q))
+                p.start()
+
+                p.join(5)
+
+                if p.is_alive():
+                    p.kill()
+                    p.join()
+                else:
+                    address = q.get()
+            except multiprocessing.ProcessError as bigoof:
+                print(f'{bigoof}')
+                quit()
+            print(address)
+
             matches = bed_pattern.findall(page_text)
-            bedrooms = int(matches[0][0])
-            print(bedrooms)
+            if matches is not None:
+                bedrooms = int(matches[0][0])
             
             matches = bath_pattern.findall(page_text)
-            bathrooms = int(matches[0][0])
-            print(bathrooms)
-            
-            quit(0)
+            if matches is not None:
+                bathrooms = int(matches[0][0])
 
             checked_results.add(res.get('data-pid'))
 
