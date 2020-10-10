@@ -27,6 +27,9 @@ if __name__ == "__main__":
 
     # timeout function to stop slow regexes
     signal.signal(signal.SIGALRM, handler)
+    
+    # avoid parsing duplicate listings by tracking listings already parsed
+    checked_results = set() # only need to test for membership
 
     # get the search queries that you want to use
     queries = []
@@ -56,24 +59,17 @@ if __name__ == "__main__":
         soup = bs4.BeautifulSoup(res.text, 'html.parser')
 
         # for craigslist look through section class=page-container ->
-        # form id=searchform -> div class=content -> ul class=rows -> li class=result-row
-        search_results = soup.select('body > section > form > div > ul > li')
-
-        # inside of the li tag is:
-        # an a tag href=*the url we want*
-        # data-pid values, will let us easily check for duplicates
-        # data-pid method might only be valid for craigslist
-
-        # avoid parsing duplicate listings by tracking listings already parsed
-        checked_results = set() # only need to test for membership
+        # form id=searchform -> div class=content -> ul class=rows -> 
+        # li class=result-row -> <a>
+        # inside of the a tag is:
+        # href=*the url we want*
+        search_results = soup.select('body > section > form > div > ul > li > a')
 
         # want to iterate through the search results and get the urls for each listing
         for k, res in enumerate(search_results):
             print(k)
-            if res.get('data-pid') in checked_results:
-                continue
             
-            lurl = res.a.get('href')
+            lurl = res.get('href')
             listing = requests.get(lurl)
             try:
                 listing.raise_for_status()
@@ -84,6 +80,13 @@ if __name__ == "__main__":
             
             lsoup = bs4.BeautifulSoup(listing.text, 'html.parser')
 
+            # get the contents of the page body
+            # section tag with class body
+            # should contain all the relevant info
+            page_body = lsoup.select('section.body')[0]
+
+            page_text = " ".join(page_body.text.split())
+
             # stats that are being searched for
             # will be unchanged if the regex searches return none
             address = ''
@@ -91,12 +94,24 @@ if __name__ == "__main__":
             bedrooms = -1
             bathrooms = -1
 
-            # get the contents of the page body
-            # section tag with class body
-            # should contain all the relevant info
-            page_body = lsoup.select('section.body')[0]
+            signal.alarm(10)
+            # sometimes a listing just doesn't contain an address that is 
+            # findable by the street_addr regex, so defn a function that 
+            # is responsible for looking for the address and if the search takes
+            # too long time it out
+            try:
+                addr = street_addr_pattern.search(page_text)
+            except RuntimeError as ex:
+                addr = None
+            signal.alarm(0)
 
-            page_text = " ".join(page_body.text.split())
+            if addr is not None:
+                address = addr.group(0)
+            
+            if address in checked_results:
+                continue
+
+            print(address)
 
             # method for getting the numeric price value is ratchet
             matches = price_pattern.findall(page_text)
@@ -113,21 +128,6 @@ if __name__ == "__main__":
                 if match_val > price:
                     price = match_val
 
-            signal.alarm(10)
-            # sometimes a listing just doesn't contain an address that is 
-            # findable by the street_addr regex, so defn a function that 
-            # is responsible for looking for the address and if the search takes
-            # too long time it out
-            try:
-                addr = street_addr_pattern.search(page_text)
-            except RuntimeError as ex:
-                addr = None
-            signal.alarm(0)
-
-            if addr is not None:
-                address = addr.group(0)
-            print(address)
-
             matches = bed_pattern.findall(page_text)
             if len(matches) != 0:
                 bedrooms = int(matches[0][0])
@@ -136,5 +136,5 @@ if __name__ == "__main__":
             if len(matches) != 0:
                 bathrooms = int(matches[0][0])
 
-            checked_results.add(res.get('data-pid'))
+            checked_results.add(address)
 
