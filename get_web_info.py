@@ -13,8 +13,23 @@ if __name__ == "__main__":
     delim = "+"
 
     #regexes
+    regexes = []
+    # craigslist title regex
     # gets housing size data, group 1 = num bedrooms, group 2 = square footage
-    craigslist_title_housing_regex = r'^.*(\d+br).*?(\d+ft2).*$'
+    regexes.append(r'^.*(\d+br).*?(\d+ft2).*$')
+    # general params checking
+    regexes.append(r'(\d+ (\w+\s?)+)') # street address
+    regexes.append(r'((\w+\s?)+),? (\w\w) (\d{5})') # city state and zip code
+    regexes.append(r'$(\d+)') # cost of rent
+    regexes.append(r'(\d) Bed(room)?(s)?') # num beds
+    regexes.append(r'(\d) ((Full )?Bath(room)?(s)?)') # num baths
+    
+    # compile parsers
+    patterns = []
+    for regex in regexes:
+        patterns.append(re.compile(regex))
+
+    n_regexes = len(patterns)
 
     # get the search queries that you want to use
     queries = []
@@ -28,6 +43,7 @@ if __name__ == "__main__":
         queries[i] = queries[i].replace(' ', delim)
 
     for query in queries:
+        print(query)
         # retrieve the webpage
         search = url.replace(swap, query)
 
@@ -68,20 +84,44 @@ if __name__ == "__main__":
             
             lsoup = bs4.BeautifulSoup(listing.text, 'html.parser')
 
+            # stats that are being searched for
+            address = ''
+            price = -1
+            bedrooms = -1
+            bathrooms = -1
+
+            print(lsoup.text)
+
+            # ------parse the title--------------------
             # get the contents of h1 with class=postingtitle
             title = lsoup.select('h1.postingtitle')[0]
+            
+            # retrieve property information contained within the title
+            price = title.find('span', attrs={'class':'price'})
+            if price is not None:
+                #price = price.get_text()
+                price = price.text[1:] if price.text[0] == '$' else price
+
+            housing = title.find('span', attrs={'class':'housing'})
+            if housing is not None:
+                #housing = housing.get_text()
+                size_stats = patterns[0].search(housing.text) # should do re.compile then match
+                if size_stats is None:
+                    print(housing)
+                else:
+                    bedrooms = size_stats.group(1)
+                    sq_ft = size_stats.group(2) #don't really need this stat
+            print(price, bedrooms, sq_ft)
+
+            # ------parse the body-----------------------
             # get the contents of section with id=postingbody
             body = lsoup.select('section#postingbody')[0]
-            
-            # retrieve property information
-            price = title.find('span', attrs={'class':'price'}).get_text()
-            price = price[1:] if price[0] == '$' else price
 
-            housing = title.find('span', attrs={'class':'housing'}).get_text()
-            size_stats = re.search(craigslist_title_housing_regex, housing)
-            bedrooms = size_stats.group(1)
-            sq_ft = size_stats.group(2)
-            print(price, bedrooms, sq_ft)
+            brs = body.find_all('br')
+            for br in brs:
+                for i in range(1, n_regexes):
+                    br.get_text()
+
             quit(0)
 
             checked_results.add(res.get('data-pid'))

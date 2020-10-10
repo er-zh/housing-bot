@@ -5,7 +5,7 @@ import os
 # holds on to search parameters and writing new json files
 # when a search appears that matches the search parameters
 
-class Search():
+class Param():
     def __init__(self, param_file='./param_template.json'):
         search_params = {}
         with open(param_file) as pf:
@@ -63,7 +63,7 @@ class Search():
             json.dump(json_data, pout)
 
 if __name__ == "__main__":
-    s = Search()
+    s = Param()
 
 '''
 {
@@ -89,3 +89,5 @@ if __name__ == "__main__":
     "sizing":[1, 1]
 }
 '''
+
+# should check for pet availability at some point in the future
