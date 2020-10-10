@@ -2,7 +2,7 @@ import requests
 import bs4
 #import selenium
 import re
-# need this to time out regexes that take forever
+# need this to timeout regexes that take forever
 # means that this is incompatible with non-UNIX envs
 import signal
 #temp
@@ -104,7 +104,12 @@ if __name__ == "__main__":
                 match_val = ''
                 for i in range(1, len(match)):
                     match_val = match_val + match[i]
-                match_val = float(match_val)
+                try:
+                    match_val = float(match_val)
+                except ValueError as ver:
+                    print(ver)
+                    price = -1
+                    break
                 if match_val > price:
                     price = match_val
 
@@ -124,11 +129,11 @@ if __name__ == "__main__":
             print(address)
 
             matches = bed_pattern.findall(page_text)
-            if matches is not None:
+            if len(matches) != 0:
                 bedrooms = int(matches[0][0])
             
             matches = bath_pattern.findall(page_text)
-            if matches is not None:
+            if len(matches) != 0:
                 bathrooms = int(matches[0][0])
 
             checked_results.add(res.get('data-pid'))
