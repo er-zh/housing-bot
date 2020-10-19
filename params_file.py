@@ -5,7 +5,7 @@ import os
 # holds on to search parameters and writing new json files
 # when a search appears that matches the search parameters
 
-class Param():
+class ParamList():
     def __init__(self, param_file='./param_template.json'):
         search_params = {}
         with open(param_file) as pf:
@@ -63,7 +63,7 @@ class Param():
             json.dump(json_data, pout)
 
 if __name__ == "__main__":
-    s = Param()
+    s = ParamList()
 
 '''
 {

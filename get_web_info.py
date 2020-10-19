@@ -13,37 +13,18 @@ def handler():
     print("regex taking too long")
     raise RuntimeError("killing regex, and skipping to next listing")
 
-if __name__ == "__main__":
-    # only searches through one site atm
-    url = "https://raleigh.craigslist.org/search/hhh?query=<qqq>&availabilityMode=0&sale_date=all+dates"
-    swap = "<qqq>"
-    delim = "+"
+class HousingData():
+    def __init__(self, listing_url, address, rental_price, beds, baths):
+        self.url = listing_url
+        self.address = address
+        self.price = rental_price
+        self.beds = beds
+        self.baths = baths
 
-    #regexes
-    suffixes = r'(St(reet)?|R(oa)?d|Dr(ive)?|Ave(nue)?|Way|Pl(ace)?|C(our)?t|Cir(cle)?)'
-    street_addr_pattern = re.compile(r'((\d+-)?(\d+) (\w+\s?){1,3} ' + suffixes + r')') # street address
-    price_pattern = re.compile(r'(\$(\d{1,3}?),?(\d{1,3},?)*)') # cost of rent
-    bed_pattern = re.compile(r'(\d)\s?(Bed(room)?(s)?|br|BR|Br)') # num beds
-    bath_pattern = re.compile(r'(\d)\s?((Full )?Bath(room)?(s)?|ba|Ba|BA)') # num baths
+def scrape(query_list):
+    housing_info = []
 
-    # timeout function to stop slow regexes
-    signal.signal(signal.SIGALRM, handler)
-    
-    # avoid parsing duplicate listings by tracking listings already parsed
-    checked_results = set() # only need to test for membership
-
-    # get the search queries that you want to use
-    queries = []
-    with open('./defaults.json') as param_file:
-        json_string_data = param_file.read()
-        params = json.loads(json_string_data)
-
-        queries = params['queries']
-    for i in range(len(queries)):
-        queries[i] = queries[i].replace('<location>', params['location'])
-        queries[i] = queries[i].replace(' ', delim)
-
-    for query in queries:
+    for query in query_list:
         print(query)
         # retrieve the webpage
         search = url.replace(swap, query)
@@ -67,9 +48,7 @@ if __name__ == "__main__":
         search_results = soup.select('body > section > form > div > ul > li > a')
 
         # want to iterate through the search results and get the urls for each listing
-        for k, res in enumerate(search_results):
-            print(k)
-            
+        for res in search_results:
             lurl = res.get('href')
             listing = requests.get(lurl)
             try:
@@ -102,7 +81,7 @@ if __name__ == "__main__":
             # too long time it out
             try:
                 addr = street_addr_pattern.search(page_text)
-            except RuntimeError as ex:
+            except RuntimeError:
                 addr = None
             signal.alarm(0)
 
@@ -112,9 +91,8 @@ if __name__ == "__main__":
             if address in checked_results:
                 continue
 
-            print(address)
-
-            # method for getting the numeric price value is ratchet
+            # just picks the highest price within the listing, since we assume
+            # any other costs listed will be small fees associated with renting
             matches = price_pattern.findall(page_text)
             for match in matches:
                 match_val = ''
@@ -137,5 +115,42 @@ if __name__ == "__main__":
             if len(matches) != 0:
                 bathrooms = int(matches[0][0])
 
+            print(address)
+            if address != '':
+                housing_info.append(HousingData(lurl, address, price, bedrooms, bathrooms))
+
             checked_results.add(address)
 
+
+
+if __name__ == "__main__":
+    # only searches through one site atm
+    url = "https://raleigh.craigslist.org/search/hhh?query=<qqq>&availabilityMode=0&sale_date=all+dates"
+    swap = "<qqq>"
+    delim = "+"
+
+    #regexes
+    suffixes = r'(St(reet)?|R(oa)?d|Dr(ive)?|Ave(nue)?|Way|Pl(ace)?|C(our)?t|Cir(cle)?)'
+    street_addr_pattern = re.compile(r'((\d+-)?(\d+) (\w+\s?){1,3} ' + suffixes + r')') # street address
+    price_pattern = re.compile(r'(\$(\d{1,3}?),?(\d{1,3},?)*)') # cost of rent
+    bed_pattern = re.compile(r'(\d)\s?(Bed(room)?(s)?|br|BR|Br)') # num beds
+    bath_pattern = re.compile(r'(\d)\s?((Full )?Bath(room)?(s)?|ba|Ba|BA)') # num baths
+
+    # timeout function to stop slow regexes
+    signal.signal(signal.SIGALRM, handler)
+    
+    # avoid parsing duplicate listings by tracking listings already parsed
+    checked_results = set() # only need to test for membership
+
+    # get the search queries that you want to use
+    queries = []
+    with open('./defaults.json') as param_file:
+        json_string_data = param_file.read()
+        params = json.loads(json_string_data)
+
+        queries = params['queries']
+    for i in range(len(queries)):
+        queries[i] = queries[i].replace('<location>', params['location'])
+        queries[i] = queries[i].replace(' ', delim)
+
+    scrape(queries)
